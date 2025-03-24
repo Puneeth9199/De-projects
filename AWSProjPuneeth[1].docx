@@ -119,3 +119,57 @@ if __name__ == '__main__':
     disconnect_future = mqtt_connection.disconnect()
     disconnect_future.result()
     print("Disconnected!")
+B: Lambda Function Code
+import json
+import boto3
+import os
+from datetime import datetime
+from decimal import Decimal
+
+# Initialize DynamoDB resource
+dynamodb = boto3.resource('dynamodb')
+table_name = os.environ['DYNAMODB_TABLE']
+table = dynamodb.Table(table_name)
+
+def lambda_handler(event, context):
+    print(f"Received event: {json.dumps(event)}")
+    
+    # Check for 'Records' key
+    if 'Records' in event:
+        for record in event['Records']:
+            try:
+                # Parse payload for IoT rule
+                payload = json.loads(record['Payload']) if 'Payload' in record else json.loads(record['Sns']['Message'])
+                process_payload(payload)
+            except Exception as e:
+                print(f"Error processing data: {str(e)}")
+    else:
+        # Handle test events
+        try:
+            process_payload(event)
+        except Exception as e:
+            print(f"Error processing data: {str(e)}")
+
+    return {
+        'statusCode': 200,
+        'body': "Data processed successfully!"
+    }
+
+def process_payload(payload):
+    # Convert float values to Decimal
+    item = {
+        'farm_id': payload.get('farm_id', 'unknown'),
+        'timestamp': payload.get('timestamp', datetime.utcnow().isoformat()),
+        'soil_moisture': Decimal(str(payload.get('soil_moisture', 0))),
+        'rainfall': Decimal(str(payload.get('rainfall', 0))),
+        'crop_health_index': Decimal(str(payload.get('crop_health_index', 0))),
+        'animal_temperature': Decimal(str(payload.get('animal_temperature', 0))),
+        'water_level': Decimal(str(payload.get('water_level', 0))),
+        'wind_speed': Decimal(str(payload.get('wind_speed', 0))),
+        'solar_radiation': Decimal(str(payload.get('solar_radiation', 0)))
+    }
+
+    # Write to DynamoDB
+    table.put_item(Item=item)
+    print(f"Data written to DynamoDB: {item}")
+
