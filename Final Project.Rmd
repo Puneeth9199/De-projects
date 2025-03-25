@@ -1,0 +1,107 @@
+---
+title: "Final Project- Heart Disease Detection"
+author: "Puneeth Reddy Golla"
+date: "2024-05-02"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Initialising Dataset:
+```{r}
+library(readr)
+library(dplyr)
+library(caret)
+library(lubridate)
+library(readr)
+ heart <- read.csv("C:/Users/punee/Downloads/heart.csv")
+```
+#Renaming columns for better understanding
+```{r}
+colnames(heart) <- c("age", "gender", "chest_pain_type", "resting_blood_pressure", 
+                  "serum_cholesterol", "fasting_blood_sugar", "resting_ecg_results", 
+                  "max_heart_rate", "exercise_induced_angina", "ST_depression", 
+                  "slope_peak_ST_segment", "num_major_vessels", "thalium_stress_test", 
+                  "heart_disease_status")
+
+#Understanding Dataset
+str(heart)
+
+#first few rows of dataset
+head(heart)
+```
+
+## Data Preprocessing
+
+
+```{r pressure, echo=FALSE}
+#Missing Values
+
+missing_values <- colSums(is.na(heart))
+print(missing_values)
+
+#factor variable
+heart$heart_disease_status = as.factor(heart$heart_disease_status)
+
+#Training and Testing data
+ind <- sample(2, nrow(heart), replace = TRUE, prob = c(0.8, 0.2))
+train <- heart[ind == 1,]
+test <- heart[ind == 2,]
+```
+#Bagging 
+```{r}
+cvcontrol <- trainControl(method="repeatedcv", 
+                          number = 5,
+                          repeats = 1,
+                          allowParallel=TRUE)
+
+
+set.seed(222)
+
+bag <- train(heart_disease_status ~ ., 
+             data=train,
+             method="treebag",
+             trControl=cvcontrol,
+             importance=TRUE)
+
+
+bag
+plot(varImp(bag))
+p <- predict(bag, test, type = 'raw')
+confusionMatrix(p, test$heart_disease_status)
+```
+#Random Forest Prediction
+```{r}
+set.seed(222)
+forest <- train(heart_disease_status ~ . , 
+                data=train,
+                method="rf",
+                trControl=cvcontrol,
+                importance=TRUE)
+
+forest
+plot(varImp(forest))
+p <- predict(forest, test, type = 'raw')
+confusionMatrix(p, test$heart_disease_status)
+
+```
+#Extreme Gradient Boosting
+```{r}
+set.seed(222)
+xgb_model <- train(heart_disease_status ~ . , 
+                   data = train,
+                   method = "xgbTree",
+                   trControl = cvcontrol,
+                   importance = TRUE)
+```
+
+```{r}
+xgb_model
+plot(varImp(xgb_model))
+p <- predict(xgb_model, test, type = 'raw')
+confusionMatrix(p, test$heart_disease_status)
+```
+
